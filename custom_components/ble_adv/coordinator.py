@@ -103,6 +103,9 @@ class BleAdvBaseDevice:
         """Apply command."""
         self.config.seed = 0
         advs: list[BleAdvAdvertisement] = self.codec.encode_advs(enc_cmd, self.config)
+        # Own adv echoed back by an adapter is then ignored as duplicated: it would revert toggle based entities
+        self.prev_tx_count = self.config.tx_count
+        self.prev_seed = self.config.seed
         for adapter_id in self.adapter_ids:
             qi = BleAdvQueueItem(enc_cmd.cmd, self.repeat, self.duration, self.interval, [x.to_raw() for x in advs], self.codec.ign_duration)
             await self.coordinator.advertise(adapter_id, self.unique_id, qi)

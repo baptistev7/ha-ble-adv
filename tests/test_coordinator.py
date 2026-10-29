@@ -151,6 +151,35 @@ async def test_deduplicate_tx_count_seed(coord: BleAdvCoordinator) -> None:
     dev1.async_on_command.reset_mock()
 
 
+async def test_ignore_own_echo(coord: BleAdvCoordinator) -> None:
+    """Test a command emitted by the device and received back by an adapter is ignored."""
+    coord.codecs = _get_codecs()
+    cod1 = coord.codecs["cod1"]
+    dev1 = _Device(coord, "dev1", "cod1", ["esp-test"])
+    dev1.add_listener("cod1", BleAdvConfig(1, 0), True)
+    dev1.async_on_command = mock.AsyncMock()
+    coord.add_device(dev1)
+
+    def _encode(_: BleAdvEncCmd, conf: BleAdvConfig) -> list[BleAdvAdvertisement]:
+        conf.tx_count = 7
+        conf.seed = 0x1234
+        return [BleAdvAdvertisement(0xFF, b"bouhbouh")]
+
+    with mock.patch.object(cod1, "encode_advs", side_effect=_encode):
+        await dev1.apply_cmd(BleAdvEncCmd(0x10))
+    echo_conf = BleAdvConfig(1, 0)
+    echo_conf.tx_count = 7
+    echo_conf.seed = 0x1234
+    await coord._publish_to_devices("esp-test", BleAdvRecvItem(datetime.now(), cod1, set(), echo_conf, BleAdvEncCmd(0x10)))  # noqa: SLF001
+    dev1.async_on_command.assert_not_called()
+    # A real remote press uses another seed: processed
+    remote_conf = BleAdvConfig(1, 0)
+    remote_conf.tx_count = 7
+    remote_conf.seed = 0x4321
+    await coord._publish_to_devices("esp-test", BleAdvRecvItem(datetime.now(), cod1, set(), remote_conf, BleAdvEncCmd(0x10)))  # noqa: SLF001
+    dev1.async_on_command.assert_called_once_with([], False)
+
+
 async def test_listening(coord: BleAdvCoordinator) -> None:
     """Test listening mode."""
     coord.codecs = _get_codecs()
