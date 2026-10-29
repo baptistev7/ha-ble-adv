@@ -56,6 +56,7 @@ class BleAdvBaseDevice:
         self.prev_cmd: BleAdvEncCmd | None = None
         self.prev_tx_count: int = 0
         self.prev_seed: int = 0
+        self.own_tx_seeds: deque[tuple[int, int]] = deque(maxlen=16)
 
     @property
     def available(self) -> bool:
@@ -103,9 +104,9 @@ class BleAdvBaseDevice:
         """Apply command."""
         self.config.seed = 0
         advs: list[BleAdvAdvertisement] = self.codec.encode_advs(enc_cmd, self.config)
-        # Own adv echoed back by an adapter is then ignored as duplicated: it would revert toggle based entities
-        self.prev_tx_count = self.config.tx_count
-        self.prev_seed = self.config.seed
+        # Remembered to ignore own adv echoed back by an adapter, possibly after the next ones: it would revert toggle based entities
+        if self.config.tx_count != 0 or self.config.seed != 0:
+            self.own_tx_seeds.append((self.config.tx_count, self.config.seed))
         for adapter_id in self.adapter_ids:
             qi = BleAdvQueueItem(enc_cmd.cmd, self.repeat, self.duration, self.interval, [x.to_raw() for x in advs], self.codec.ign_duration)
             await self.coordinator.advertise(adapter_id, self.unique_id, qi)
@@ -288,7 +289,9 @@ class BleAdvCoordinator:
         for device in self._devices:
             if device.unique_id not in recv.pub_devices and (ct := device.match(recv.codec.match_id, adapter_id, recv.conf)) is not None:
                 cons_cmd = copy(recv.enc_cmd)  # work on a copy to avoid the alteration of the command
-                if (cons_cmd := recv.codec.consolidate(cons_cmd, device.prev_cmd)) is not None:
+                if (recv.conf.tx_count, recv.conf.seed) in device.own_tx_seeds:
+                    self._add_diag("Ignored as own emitted command")
+                elif (cons_cmd := recv.codec.consolidate(cons_cmd, device.prev_cmd)) is not None:
                     if (
                         ((recv.conf.tx_count == 0) and (recv.conf.seed == 0))  # TX Count AND Seed not setup: always valid
                         or (recv.conf.tx_count != device.prev_tx_count)  # TX Count different from last one recv

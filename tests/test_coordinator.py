@@ -161,12 +161,14 @@ async def test_ignore_own_echo(coord: BleAdvCoordinator) -> None:
     coord.add_device(dev1)
 
     def _encode(_: BleAdvEncCmd, conf: BleAdvConfig) -> list[BleAdvAdvertisement]:
-        conf.tx_count = 7
-        conf.seed = 0x1234
+        conf.tx_count += 7
+        conf.seed = 0x1234 if conf.tx_count == 7 else 0x5678
         return [BleAdvAdvertisement(0xFF, b"bouhbouh")]
 
+    # Echo of the first command only received after the second one is emitted
     with mock.patch.object(cod1, "encode_advs", side_effect=_encode):
         await dev1.apply_cmd(BleAdvEncCmd(0x10))
+        await dev1.apply_cmd(BleAdvEncCmd(0x22))
     echo_conf = BleAdvConfig(1, 0)
     echo_conf.tx_count = 7
     echo_conf.seed = 0x1234
