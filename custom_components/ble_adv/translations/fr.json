@@ -362,7 +362,8 @@
         "fl": "Clignotement",
         "no_nm": "Pas de mode Nuit",
         "nm_as_effect": "Mode Nuit comme Effet",
-        "nm_as_second_light": "Mode Nuit comme seconde lampe"
+        "nm_as_second_light": "Mode Nuit comme seconde lampe",
+        "rgb_toggle_as_second_light": "Bascule RGB comme seconde lampe"
       }
     }
   },

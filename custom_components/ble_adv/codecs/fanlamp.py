@@ -75,6 +75,19 @@ class FanLampEncoder(BleAdvCodec):
         nm_as_sl.delete(BleAdvEncCmd(0x12)).delete(BleAdvEncCmd(0x13))
         nm_as_sl.replace(Trans(LightCmd(1).act(ATTR_ON, ATTR_CMD_TOGGLE), EncCmd(0x23)))
         self.add_translator_set("nm_as_second_light", nm_as_sl)
+
+        # Some lamps ignore 0x12 / 0x13 and only switch their RGB light with the remote toggle 0x1C / arg0 2:
+        # ON and OFF both send the toggle, and a received toggle flips the state.
+        rgb_tg = TranslatorSet(translators[:])
+        rgb_tg.delete(BleAdvEncCmd(0x12)).delete(BleAdvEncCmd(0x13))
+        rgb_tg.add_translators(
+            [
+                Trans(LightCmd(1).act(ATTR_ON, ATTR_CMD_TOGGLE), EncCmd(0x1C).eq("arg0", 2)),
+                Trans(LightCmd(1).act(ATTR_ON, True), EncCmd(0x1C).eq("arg0", 2)).no_reverse(),
+                Trans(LightCmd(1).act(ATTR_ON, False), EncCmd(0x1C).eq("arg0", 2)).no_reverse(),
+            ]
+        )
+        self.add_translator_set("rgb_toggle_as_second_light", rgb_tg)
         return self
 
 

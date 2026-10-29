@@ -362,7 +362,8 @@
         "fl": "Flickering",
         "no_nm": "No Night Mode",
         "nm_as_effect": "Night Mode as Effect",
-        "nm_as_second_light": "Night Mode as Second Light"
+        "nm_as_second_light": "Night Mode as Second Light",
+        "rgb_toggle_as_second_light": "RGB Toggle as Second Light"
       }
     }
   },

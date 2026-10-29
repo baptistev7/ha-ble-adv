@@ -5,7 +5,8 @@
 from copy import copy
 
 import pytest
-from ble_adv.codecs.models import BleAdvAdvertisement, BleAdvCodec, BleAdvEncCmd
+from ble_adv.codecs.const import ATTR_ON, LIGHT_TYPE
+from ble_adv.codecs.models import BleAdvAdvertisement, BleAdvCodec, BleAdvEncCmd, BleAdvEntAttr
 
 from . import CODECS, _TestEncoderBase, _TestEncoderBaseParams, _TestEncoderFull, _TestEncoderFullAll
 
@@ -948,10 +949,28 @@ class TestEncoderFanlampRemoteV0(_TestEncoderFull):
             "id: 0x712950E6, index: 0, tx: 83, seed: 0x2B53",
             "light_1: ['on'] / {'on': 'toggle'}",
         ),
+        # RGB toggle as second light
+        (
+            "lampsmart_pro_v2",
+            [True, [0x30, 0x80, 0x00]],
+            "rgb_toggle_as_second_light",
+            "0201191B03F0083080F26E9BDAC603A80B2B26F91DFF26A8B7E3393EF974FD",
+            "cmd: 0x1C, param: 0x00, args: [2,0,0]",
+            "id: 0x044E4C09, index: 0, tx: 100, seed: 0xF93E",
+            "light_1: ['on'] / {'on': 'toggle'}",
+        ),
     ],
 )
 class TestEncoderFanlampSets(_TestEncoderFullAll):
     """Fanlamp Encoder / Decoder Full ALL tests."""
+
+
+def test_rgb_toggle_as_second_light_on_off() -> None:
+    """Check second light ON and OFF both send the RGB toggle, and no longer 0x12 / 0x13."""
+    codec = CODECS["lampsmart_pro_v2"]
+    for is_on in (True, False):
+        ent_attr = BleAdvEntAttr([ATTR_ON], {ATTR_ON: is_on}, LIGHT_TYPE, 1)
+        assert [repr(cmd) for cmd in codec.ent_to_enc(ent_attr, "rgb_toggle_as_second_light")] == ["cmd: 0x1C, param: 0x00, args: [2,0,0]"]
 
 
 def _get_cmd(codec: BleAdvCodec, buffer: str) -> BleAdvEncCmd:
